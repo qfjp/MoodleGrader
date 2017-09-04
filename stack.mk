@@ -3,7 +3,7 @@ stack-all :
 
 stack-test :
 	stack --no-terminal --install-ghc ${ARGS} test --bench --only-dependencies
-	echo "" | stack --no-terminal ${ARGS} test ":test" --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
+	echo "" | stack --no-terminal ${ARGS} test ":MoodleGrader-test" --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
 
 stack-clean :
 	stack clean
