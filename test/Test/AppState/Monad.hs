@@ -30,8 +30,8 @@ unitTest
       fundamentals
       describe "AppState laws" $ do
         testBatch $ functor (undefined :: AppState (Sum Int) (Bool, Char, Int))
-        testBatch $ monad (undefined :: AppState [Int] (Bool, Char, Int))
-        testBatch $ traversable (undefined :: AppState (Sum Int) (Bool, Char, Text))
+        --testBatch $ monad (undefined :: AppState [Int] (Bool, Char, Int))
+        --testBatch $ traversable (undefined :: AppState (Sum Int) (Bool, Char, Text))
 
 fundamentals :: SpecWith ()
 fundamentals

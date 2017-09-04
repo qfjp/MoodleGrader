@@ -15,6 +15,7 @@ module Data.AppState.Monad
     where
 
 import           Padelude            hiding (empty, show)
+import qualified Prelude             as Pre (error)
 
 import           Brick.Widgets.List  as L
 import qualified Control.Applicative as A
@@ -139,11 +140,11 @@ instance Monoid n => Traversable (AppState n) where
     --traverse :: Applicative f => (a -> f b) -> AppState n a -> f (AppState n b)
     traverse f m
       = case m of
-          Prim s     -> error "undefined"
+          Prim s     -> Pre.error "undefined"
           Return a   -> Return <$> f a
           Zero       -> pure Zero
-          Plus ma mb -> error "undefined"
-          Bind s g   -> error "undefined"
+          Plus ma mb -> Pre.error "undefined"
+          Bind s g   -> Pre.error "undefined"
 
 instance (Eq n, Monoid n, Ord a) => Eq (AppState n a) where
   s1 == s2 = run s1 == run s2

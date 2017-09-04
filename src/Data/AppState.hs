@@ -6,6 +6,7 @@ module Data.AppState where
 
 import           Padelude           hiding (empty, foldr)
 import qualified Padelude           as P (foldr)
+import qualified Prelude            as Pre (error)
 
 import           Brick.Widgets.List as L
 import           Control.Lens       (makeLenses, (^.))
@@ -75,7 +76,7 @@ map f m
       setItems = _marked m
 
 sequenceA :: AppState n (f a) -> f (AppState n a)
-sequenceA = error "undefined"
+sequenceA = Pre.error "undefined"
 
 singleton :: Ord a => n -> a -> AppState n a
 singleton n = flip (appState n) S.empty . V.singleton

@@ -18,6 +18,7 @@ cabal-clean :
 
 cabal-init :
 	$(SANDBOX)
+	cabal update
 	cabal install $(CABALJOBS) --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --reorder-goals --max-backjumps=-1
 	cabal configure
 
