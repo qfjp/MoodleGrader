@@ -110,7 +110,7 @@ before_install:
  # ======================
 
  # We want to always allow newer versions of packages when building on GHC HEAD
- - PATH=/opt/ghc/$GHCVER/bin:/opt/ghc-ppa-tools/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:$PATH
+ - PATH=/opt/ghc/$GHCVER/bin:/opt/ghc-ppa-tools/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:.cabal-sandbox/bin:$PATH
  - CABALARGS=""
  - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
  # Download and unpack the stack executable
@@ -172,11 +172,11 @@ after_script:
     set -ex
     case "$BUILD" in
       stack)
-        stack install hpc-coveralls
+        stack --install-ghc install hpc-coveralls
         ;;
       cabal)
         cabal sandbox init && cabal install hpc-coveralls
         ;;
     esac
     set +ex
-  - .cabal-sandbox/bin/hpc-coveralls MoodleGrader-test
+  - hpc-coveralls MoodleGrader-test
