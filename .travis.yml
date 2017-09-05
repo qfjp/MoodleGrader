@@ -141,6 +141,7 @@ install:
        rm -fv cabal.project.local
        echo 'packages: .' > cabal.project
        rm -f cabal.project.freeze
+       cabal update
        cabal new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all
        cabal new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all
        ;;
@@ -170,6 +171,7 @@ script:
       echo 'packages: .' > cabal.project
       # this builds all libraries and executables (without tests/benchmarks)
       rm -f cabal.project.freeze
+      cabal update
       cabal new-build -w ${HC} --disable-tests --disable-benchmarks all
       # this builds all libraries and executables (including tests/benchmarks)
       # - rm -rf ./dist-newstyle
