@@ -19,10 +19,10 @@ cabal-clean :
 cabal-init :
 	$(SANDBOX)
 	cabal update
-	cabal install $(CABALJOBS) --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --reorder-goals --max-backjumps=-1
+	cabal install $(CABALJOBS) --only-dependencies --enable-tests --enable-coverage --enable-benchmarks --force-reinstalls --reorder-goals --max-backjumps=-1
 	cabal configure
 
 cabal-test-init:
-	cabal configure --enable-tests --enable-benchmarks
+	cabal configure --enable-tests --enable-coverage --enable-benchmarks
 
 .PHONY : cabal-all cabal-clean cabal-init cabal-test cabal-test-init

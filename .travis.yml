@@ -10,12 +10,12 @@ sudo: false
 git:
   submodules: false  # whether to recursively clone submodules
 
-cache:
-  directories:
-    - $HOME/.ghc
-    - $HOME/.cabal/packages
-    - $HOME/.cabal/store
-    - $HOME/.stack
+#cache:
+#  directories:
+#    - $HOME/.ghc
+#    - $HOME/.cabal/packages
+#    - $HOME/.cabal/store
+#    - $HOME/.stack
 
 before_cache:
   - rm -fv $HOME/.cabal/packages/hackage.haskell.org/build-reports.log
