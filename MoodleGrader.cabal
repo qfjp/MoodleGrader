@@ -58,7 +58,7 @@ executable MoodleGrader
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   default-extensions:  OverloadedStrings
                      , NoImplicitPrelude
-  build-depends:       MoodleGrader >= 0.1.0.0
+  build-depends:       MoodleGrader
                      , base >= 4.7 && < 5
                      , brick >= 0.18 && < 0.19
                      , containers >= 0.5.6.2 && < 0.6
@@ -79,7 +79,7 @@ test-suite MoodleGrader-test
                      , Test.Util.Vector
   default-extensions:  OverloadedStrings
                      , NoImplicitPrelude
-  build-depends:       MoodleGrader >= 0.1.0.0
+  build-depends:       MoodleGrader
                      , base
                      , brick >= 0.18 && < 0.19
                      , checkers >= 0.4.7 && < 0.5
