@@ -131,7 +131,6 @@ before_install:
    then
      echo 'jobs: $ncpus' >> $HOME/.cabal/config
    fi
- - cabal install hpc-coveralls
 
 
 install:
@@ -150,11 +149,11 @@ install:
        HADDOCK=${HADDOCK-true}
        INSTALLED=${INSTALLED-true}
        travis_retry cabal update -v
+       travis_retry cabal install hpc-coveralls
        sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
        rm -fv cabal.project.local
        echo 'packages: .' > cabal.project
        rm -f cabal.project.freeze
-       cabal update
        cabal new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all
        cabal new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all
        ;;
@@ -184,7 +183,8 @@ script:
       echo 'packages: .' > cabal.project
       # this builds all libraries and executables (without tests/benchmarks)
       rm -f cabal.project.freeze
-      cabal update
+      travis_retry cabal update -v
+      travis_retry cabal install hpc-coveralls
       cabal new-build -w ${HC} --disable-tests --disable-benchmarks all
       # this builds all libraries and executables (including tests/benchmarks)
       # - rm -rf ./dist-newstyle
