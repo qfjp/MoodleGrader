@@ -143,19 +143,8 @@ install:
        ;;
      cabal)
        cabal --version
-       echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
-       BENCH=${BENCH---enable-benchmarks}
-       TEST=${TEST---enable-tests}
-       HADDOCK=${HADDOCK-true}
-       INSTALLED=${INSTALLED-true}
-       travis_retry cabal update -v
-       sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
-       rm -fv cabal.project.local
-       echo 'packages: .' > cabal.project
-       rm -f cabal.project.freeze
-       cabal update
-       cabal new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all
-       cabal new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all
+       travis_retry cabal update
+       make cabal-all
        ;;
     esac
     set +ex
@@ -167,40 +156,11 @@ script:
    set -ex
    case "$BUILD" in
      stack)
-      make ARGS="$ARGS" stack-test
+       make ARGS="$ARGS" stack-test
        ;;
      cabal)
-      if [ -f configure.ac ]; then autoreconf -i; fi
-      rm -rf .ghc.environment.* dist/
-      cabal sdist # test that a source-distribution can be generated
-      cd dist/
-      SRCTAR=(${PKGNAME}-*.tar.gz)
-      SRC_BASENAME="${SRCTAR/%.tar.gz}"
-      tar -xvf "./$SRC_BASENAME.tar.gz"
-      cd "$SRC_BASENAME/"
-      # from here on, CWD is inside the extracted source-tarball
-      rm -fv cabal.project.local
-      echo 'packages: .' > cabal.project
-      # this builds all libraries and executables (without tests/benchmarks)
-      rm -f cabal.project.freeze
-      cabal update
-      cabal new-build -w ${HC} --disable-tests --disable-benchmarks all
-      # this builds all libraries and executables (including tests/benchmarks)
-      # - rm -rf ./dist-newstyle
-
-      # Build with installed constraints for packages in global-db
-      if $INSTALLED; then
-        echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\([a-zA-Z0-9-]\{1,\}\) */--constraint="\1 installed" /g') all | sh;
-      else echo "Not building with installed constraints"; fi
-
-      # build & run tests, build benchmarks
-      cabal new-build -w ${HC} ${TEST} ${BENCH} all
-      if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} all; fi
-
-      # haddock
-      rm -rf ./dist-newstyle
-      if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo "Skipping haddock generation";fi
-      ;;
+       make cabal-test
+       ;;
    esac
    set +ex
 
