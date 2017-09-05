@@ -1,7 +1,11 @@
 name:                MoodleGrader
+--                   +-+------- breaking API changes
+--                   | | +----- non-breaking API additions
+--                   | | | +--- code changes with no API change
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis:            USC CSE Moodle/Blackboard Grader
+description:         A program to assist in grading CS assignments,
+                     with automated upload to both blackboard and moodle
 homepage:            https://github.com/qfjp/MoodleGrader#readme
 license:             BSD3
 license-file:        LICENSE

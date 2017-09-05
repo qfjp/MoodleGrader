@@ -168,5 +168,15 @@ script:
 # EOF
 
 after_script:
-  - cabal sandbox init && cabal install hpc-coveralls
+  - |
+    set -ex
+    case "$BUILD" in
+      stack)
+        stack install hpc-coveralls
+        ;;
+      cabal)
+        cabal sandbox init && cabal install hpc-coveralls
+        ;;
+    esac
+    set +ex
   - .cabal-sandbox/bin/hpc-coveralls MoodleGrader-test
