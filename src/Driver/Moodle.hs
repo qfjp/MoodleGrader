@@ -2,7 +2,6 @@
 module Driver.Moodle where
 
 import           Padelude
-import qualified Prelude                      as P ((!!))
 
 import           Control.Monad.Trans.Either
 import qualified Data.Text                    as T
@@ -50,14 +49,16 @@ username :: Text
 username = undefined
 password :: Text
 password = undefined
-section :: Text
-section = undefined
-assignment :: Text
-assignment = undefined
+testSection :: Text
+testSection = undefined
+testAssignment :: Text
+testAssignment = undefined
 
-sampleNames :: [Name]
-sampleNames
+testNames :: [(Name, Int)]
+testNames
   = undefined
+
+-- Purely internal --
 
 driverConfig :: WDConfig
 --driverConfig = useBrowser phantomjs defaultConfig
@@ -74,7 +75,8 @@ findUniqueElem selector
       elemList :: WebDriver wd => wd [Element]
       elemList = findElems selector
 
-findUniqueElemFrom :: WebDriver wd => S.Selector -> Element -> EitherT Text wd Element
+findUniqueElemFrom :: WebDriver wd
+                   => S.Selector -> Element -> EitherT Text wd Element
 findUniqueElemFrom selector el
   = do
       elemText <- lift $ getText el
@@ -89,12 +91,51 @@ findUniqueElemFrom selector el
       elemList :: WebDriver wd => EitherT Text wd [Element]
       elemList = lift . findElemsFrom el $ selector
 
+findUniqueElemFromEls :: WebDriver wd
+                      => S.Selector -> [Element]
+                      -> EitherT Text wd Element
+findUniqueElemFromEls selector els
+  = do
+      results
+        <- rightsT . map (findUniqueElemFrom selector)
+         $ els
+      case results of
+          (x:[]) -> right x
+          _      -> left "Couldn't find course link"
+  where
+
+-- | Given that the webdriver is at the 'logged in' page, this moves the
+-- to the course webpage.
+courseLink :: WebDriver wd => Text -> EitherT Text wd Element
+courseLink section
+  = do
+      courseTitleDivs <- lift $ findElems (ByClass "course_title")
+      findUniqueElemFromEls (ByPartialLinkText section) courseTitleDivs
+
+-- Assumes we are at the course webpage
+-- Brings us to the link for the assignment
+assignLink :: WebDriver wd => Text -> EitherT Text wd Element
+assignLink assignment
+  = do
+      mainDiv <- lift $ findElem (ByClass "weeks")
+      findUniqueElemFrom (ByLinkText assignment) mainDiv
+
+-- Assumes we are at the link for the assignment
+-- Brings us to the link for grading the assignment
+allSubmissionsLink :: WebDriver wd => EitherT Text wd Element
+allSubmissionsLink
+  = EitherT . fmap Right . findElem . ByLinkText
+  $ "View all submissions"
+
+-- Exportable --
+
 login :: WebDriver wd => wd ()
 login
   = do
     openPage "https://dropbox.cse.sc.edu/login/index.php"
     waitUntil 15 $
-        expect . (== "https://dropbox.cse.sc.edu/login/index.php") =<< getCurrentURL
+        expect . (== "https://dropbox.cse.sc.edu/login/index.php")
+          =<< getCurrentURL
     usernameInput <- findElem ( ById "username" )
     passwordInput <- findElem ( ByCSS "#password" )
     loginButton <- findElem ( ByCSS "#loginbtn")
@@ -102,40 +143,28 @@ login
     sendKeys password passwordInput
     submit loginButton
 
--- | Given that the webdriver is at the 'logged in' page, this moves the
--- to the course webpage.
-courseLink :: WebDriver wd => EitherT Text wd Element
-courseLink
+gotoAllSubmissions :: WebDriver wd => EitherT Text wd ()
+gotoAllSubmissions
   = do
-      courseTitleDivs <- lift $ findElems (ByClass "course_title")
-      results
-        <- rightsT . map (findUniqueElemFrom (ByPartialLinkText section))
-         $ courseTitleDivs
-      case results of
-          (x:[]) -> right x
-          _      -> left "Couldn't find course link"
+      lift gotoMainPage
+      lift . click =<< courseLink testSection
+      lift . click =<< assignLink testAssignment
+      lift . click =<< allSubmissionsLink
 
--- Assumes we are at the course webpage
--- Brings us to the link for the assignment
-assignLink :: WebDriver wd => EitherT Text wd Element
-assignLink
+gotoMainPage :: WebDriver wd => wd ()
+gotoMainPage = openPage "https://dropbox.cse.sc.edu/my/"
+
+noNotifyOpt :: WebDriver wd => EitherT Text wd ()
+noNotifyOpt
   = do
-      mainDiv <- lift $ findElem (ByClass "weeks")
-      results <- lift $ findElemsFrom mainDiv (ByLinkText assignment)
-      case results of
-          []     -> left "No assignment link available"
-          (x:[]) -> right x
-          _      -> left "Too many choices for assignment link"
-
--- Assumes we are at the link for the assignment
--- Brings us to the link for grading the assignment
-allSubmissions :: WebDriver wd => wd ()
-allSubmissions
-  = findElem (ByLinkText "View all submissions") >>= click
+      noOpt
+        <- findUniqueElem . ByCSS
+         $ "#id_sendstudentnotifications option[value=\"0\"]"
+      lift $ click noOpt
 
 -- | Given a name and a grade, saves that grade through moodle.
 -- Assumes we are at the link for grading the assignment
-gradeStudent :: WebDriver wd => Name -> Int -> EitherT Text wd Integer
+gradeStudent :: WebDriver wd => Name -> Int -> EitherT Text wd ()
 gradeStudent name grade
   = do
       lift . click =<< firstInitButton
@@ -145,11 +174,18 @@ gradeStudent name grade
         <- maybe2EitherT
              "Could not find href attribute for given name" =<<
              (lift . flip attr "href" $ studentId)
-      right $ parseUserId hrefAttr
+      let userid = parseUserId hrefAttr
+          gradeElementId = "quickgrade_" ++ tshow userid
+      gradeElement <- findUniqueElem . ById $ gradeElementId
+      saveElement <- findUniqueElem . ById $ "id_savequickgrades"
+      lift $ sendKeys (tshow grade) gradeElement
+      noNotifyOpt
+      lift $ submit saveElement -- TODO: Test before using this!
   where
       firstInitial = T.head . _nFst $ name
       lastInitial = T.head . _nLst $ name
-      selectInitial :: WebDriver wd => Initial -> EitherT Text wd Element
+      selectInitial :: WebDriver wd
+                    => Initial -> EitherT Text wd Element
       selectInitial initial
         = do
             let
@@ -176,15 +212,12 @@ gradeStudent name grade
       lastInitButton :: WebDriver wd => EitherT Text wd Element
       lastInitButton = selectInitial (LastI lastInitial)
 
-run :: IO ()
-run
-  = runSession driverConfig $ do
-      login
-      eitherT error click courseLink
-      eitherT error click assignLink
-      allSubmissions
-      print =<< getCurrentURL
-      urlid <- eitherT error return (gradeStudent (sampleNames P.!! 0) 0)
-      print urlid
-      print =<< getCurrentURL
-      closeSession
+run :: [(Name, Int)] -> IO ()
+run grades
+  = runSession driverConfig . eitherT error return $ do
+      lift login
+      gotoAllSubmissions
+      print =<< lift getCurrentURL
+      mapM_ ((>> gotoAllSubmissions) . uncurry gradeStudent) grades
+      print =<< lift getCurrentURL
+      --lift closeSession

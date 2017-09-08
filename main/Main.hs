@@ -6,7 +6,6 @@ import qualified Prelude                   as Pre (error)
 import qualified Brick.Main                as M
 import           Control.Monad.Trans.Maybe
 
-import           Control.PrettyShow
 import           Data.AppState.Monad
 import           Data.Name
 import           Driver.Moodle             as Driver
@@ -21,4 +20,4 @@ main
         Nothing -> Pre.error "ERROR: trouble parsing name list"
         Just ns -> M.defaultMain theApp (initialState ns :: AppState Nat Name)
       mapM_ print $ getMarks finalState
-      Driver.run
+      Driver.run Driver.testNames
