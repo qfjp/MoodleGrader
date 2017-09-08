@@ -13,18 +13,23 @@ import           Test.WebDriver.Commands.Wait as S
 import           Data.Name
 import           Driver.Moodle.Parser
 
-tshow :: Show a => a -> Text
-tshow = T.pack . show
 
-username :: Text
-username = undefined
-password :: Text
-password = undefined
-section :: Text
-section = undefined
-assignment :: Text
-assignment = undefined
+-- Data Types --
 
+data Initial = FirstI Char | LastI Char
+
+isFirst :: Initial -> Bool
+isFirst (FirstI _) = True
+isFirst _          = False
+
+isLast :: Initial -> Bool
+isLast = not . isFirst
+
+initialChar :: Initial -> Char
+initialChar (FirstI x) = x
+initialChar (LastI x)  = x
+
+-- Utility Functions --
 
 rightsT :: forall e m a. Monad m => [EitherT e m a] -> EitherT e m [a]
 rightsT
@@ -36,6 +41,19 @@ maybe2EitherT err mayb
       Just x  -> right x
       Nothing -> left err
 
+tshow :: Show a => a -> Text
+tshow = T.pack . show
+
+-- Test Data --
+
+username :: Text
+username = undefined
+password :: Text
+password = undefined
+section :: Text
+section = undefined
+assignment :: Text
+assignment = undefined
 
 sampleNames :: [Name]
 sampleNames
@@ -129,39 +147,34 @@ gradeStudent name grade
              (lift . flip attr "href" $ studentId)
       right $ parseUserId hrefAttr
   where
-      firstInitial = T.singleton . T.head . _nFst $ name
-      lastInitial = T.singleton . T.head . _nLst $ name
+      firstInitial = T.head . _nFst $ name
+      lastInitial = T.head . _nLst $ name
+      selectInitial :: WebDriver wd => Initial -> EitherT Text wd Element
+      selectInitial initial
+        = do
+            let
+              cssSel
+                = if isFirst initial
+                  then ".initialbar.firstinitial"
+                  else ".initialbar.lastinitial"
+            alphabetSelectList'
+              <- findUniqueElem (ByCSS cssSel)
+            anySelected
+              <- lift $
+                  findElemsFrom alphabetSelectList' (ByLinkText "All")
+            alphabetSelectList
+              <- case listToMaybe anySelected of
+                   Nothing -> return alphabetSelectList'
+                   Just x -> (lift . click) x
+                          >> findUniqueElem (ByCSS cssSel)
+            flip findUniqueElemFrom alphabetSelectList
+              . ByLinkText . T.singleton . initialChar $ initial
       -- | The Element that selects the first initial of the given
       -- name
       firstInitButton :: WebDriver wd => EitherT Text wd Element
-      firstInitButton
-        = do
-            firstNameSelectionList
-              <- findUniqueElem (ByCSS ".initialbar.firstinitial")
-            anySelected
-              <- lift $
-                  findElemsFrom firstNameSelectionList (ByLinkText "All")
-            selectListRef
-              <- case anySelected of
-                   []  -> return firstNameSelectionList
-                   x:_ -> (lift . click) x
-                       >> findUniqueElem (ByCSS ".initialbar.firstinitial")
-            findUniqueElemFrom (ByLinkText firstInitial) selectListRef
-      -- | The Element that selects the last initial of the given
-      -- name
+      firstInitButton = selectInitial (FirstI firstInitial)
       lastInitButton :: WebDriver wd => EitherT Text wd Element
-      lastInitButton
-        = do
-            lastNameSelectionList
-              <- findUniqueElem (ByCSS ".initialbar.lastinitial")
-            anySelected
-              <- lift $ findElemsFrom lastNameSelectionList (ByLinkText "All")
-            selectListRef
-              <- case anySelected of
-                   []  -> return lastNameSelectionList
-                   x:_ -> (lift . click) x
-                       >> findUniqueElem (ByCSS ".initialbar.lastinitial")
-            findUniqueElemFrom (ByLinkText lastInitial) selectListRef
+      lastInitButton = selectInitial (LastI lastInitial)
 
 run :: IO ()
 run
