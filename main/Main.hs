@@ -9,6 +9,7 @@ import           Control.Monad.Trans.Maybe
 import           Control.PrettyShow
 import           Data.AppState.Monad
 import           Data.Name
+import           Driver.Moodle             as Driver
 import           Parser.NameList
 import           Ui                        (initialState, theApp)
 
@@ -19,4 +20,5 @@ main
       finalState <- case nameList of
         Nothing -> Pre.error "ERROR: trouble parsing name list"
         Just ns -> M.defaultMain theApp (initialState ns :: AppState Nat Name)
-      mapM_ pprint $ getMarks finalState
+      mapM_ print $ getMarks finalState
+      Driver.run
