@@ -3,11 +3,12 @@ module Data.Name where
 
 import           Padelude
 
-import           Control.Lens
 import           Control.PrettyShow
 import           Data.Csv           hiding (Name)
 import           Data.Default
 import qualified Data.Text          as T
+import           Lens.Micro         ((^.))
+import           Lens.Micro.TH      (makeLenses)
 
 data Name
     = Name { _nFst :: Text

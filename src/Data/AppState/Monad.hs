@@ -19,12 +19,12 @@ import qualified Prelude             as Pre (error)
 
 import           Brick.Widgets.List  as L
 import qualified Control.Applicative as A
-import           Control.Lens        hiding (sets)
 import qualified Data.Foldable       as Foldable
 import qualified Data.Functor        as F
 import qualified Data.Set.Monad      as S
 import qualified Data.Vector         as V
 import           GHC.Read
+import           Lens.Micro
 import           Text.Show
 
 import           Data.AppState       as AppState (BList)

@@ -9,9 +9,10 @@ import qualified Padelude           as P (foldr)
 import qualified Prelude            as Pre (error)
 
 import           Brick.Widgets.List as L
-import           Control.Lens       (makeLenses, (^.))
 import qualified Data.Set.Monad     as S
 import qualified Data.Vector        as V
+import           Lens.Micro         ((^.))
+import           Lens.Micro.TH      (makeLenses)
 
 import           Util.Vector
 
