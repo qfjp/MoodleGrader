@@ -1,23 +1,23 @@
 module Main where
 
 import           Padelude
-import qualified Prelude                   as Pre (error)
+import qualified Prelude                    as Pre (error)
 
-import qualified Brick.Main                as M
-import           Control.Monad.Trans.Maybe
+import qualified Brick.Main                 as M
+import           Control.Monad.Trans.Either
 
 import           Data.AppState.Monad
 import           Data.Name
-import           Driver.Moodle             as Driver
+import           Driver.Moodle              as Driver
 import           Parser.NameList
-import           Ui                        (initialState, theApp)
+import           Ui                         (initialState, theApp)
 
 main :: IO ()
 main
   = do
-      nameList <- runMaybeT getNames
+      nameList <- runEitherT $ getNamesFromCsv "390.csv"
       finalState <- case nameList of
-        Nothing -> Pre.error "ERROR: trouble parsing name list"
-        Just ns -> M.defaultMain theApp (initialState ns :: AppState Nat Name)
+        Left x -> Pre.error x
+        Right (_, ns) -> M.defaultMain theApp (initialState ns :: AppState Nat Name)
       mapM_ print $ getMarks finalState
       Driver.run Driver.testNames

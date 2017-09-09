@@ -116,11 +116,11 @@ toggleElement x set
     else S.insert x set
 
 
-initialState :: (Monoid n, Ord a) => [a] -> AppState n a
+initialState :: (Monoid n, Ord a) => Vec.Vector a -> AppState n a
 initialState names
   = appState
       mempty
-      (Vec.fromList names)
+      names
       mempty
 
 markedAttr :: A.AttrName
