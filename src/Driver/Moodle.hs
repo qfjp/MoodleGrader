@@ -5,9 +5,11 @@ import           Padelude
 
 import           Control.Monad.Trans.Either
 import qualified Data.Text                    as T
+import           Data.Text.IO
 import           Test.WebDriver               as S
 import           Test.WebDriver.Class         as S
 import           Test.WebDriver.Commands.Wait as S
+import           Test.WebDriver.Config        as S
 
 import           Data.Name
 import           Driver.Moodle.Parser
@@ -42,6 +44,10 @@ maybe2EitherT err mayb
 
 tshow :: Show a => a -> Text
 tshow = T.pack . show
+
+wd2Io :: (WebDriverConfig conf) => conf -> EitherT e WD a -> EitherT e IO a
+wd2Io conf driver
+  = EitherT (runSession conf (runEitherT driver))
 
 -- Test Data --
 
@@ -143,6 +149,16 @@ login
     sendKeys password passwordInput
     submit loginButton
 
+getCourses :: IO [Text]
+getCourses
+  = eitherT
+      ((flip (>>)) (return []) . hPutStr stderr)
+      return . wd2Io driverConfig $ do
+        lift login
+        lift gotoMainPage
+        courseTitleDivs <- lift $ findElems (ByClass "course_title")
+        lift $ mapM getText courseTitleDivs
+
 gotoAllSubmissions :: WebDriver wd => EitherT Text wd ()
 gotoAllSubmissions
   = do
@@ -220,4 +236,4 @@ run grades
       print =<< lift getCurrentURL
       mapM_ ((>> gotoAllSubmissions) . uncurry gradeStudent) grades
       print =<< lift getCurrentURL
-      --lift closeSession
+      lift closeSession

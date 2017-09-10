@@ -5,16 +5,14 @@
 module Data.AppState where
 
 import           Padelude           hiding (empty, foldr)
-import qualified Padelude           as P (foldr)
-import qualified Prelude            as Pre (error)
 
 import           Brick.Widgets.List as L
+
+import           Data.Default
 import qualified Data.Set.Monad     as S
 import qualified Data.Vector        as V
 import           Lens.Micro         ((^.))
 import           Lens.Micro.TH      (makeLenses)
-
-import           Util.Vector
 
 type BList n a
   = L.List n a
@@ -43,35 +41,62 @@ instance (Ord a, Ord n) => Ord (BList n a) where
         getName = (^. L.listNameL)
         getItemHeight = (^. listItemHeightL)
 
+data AppSection
+  = None
+  | Courses
+  | Assignments
+  | Students
+  deriving (Show, Ord, Eq)
+
+instance Monoid AppSection where
+    mempty = None
+    None `mappend` x = x
+    x `mappend` None = x
+    _ `mappend` y = y
+
 data AppState n a
-    = AppState { _blist  :: BList n a
-               , _marked :: Set a
+    = AppState { _focused  :: AppSection
+               , _courses  :: BList n Text
+               , _students :: BList n a
+               , _marked   :: Set a
                }
-    deriving (Show, Ord)
+    deriving (Show, Eq, Ord)
 
-appState :: Ord a => n -> V.Vector a -> Set a -> AppState n a
-appState n v = AppState (L.list n (vectorSort v) 1)
-
-appState' :: Ord a => BList n a -> Set a -> AppState n a
-appState' = AppState
-
-instance (Ord a, Eq n) => Eq (AppState n a) where
-    a == b
-      = _blist a == _blist b
-      && _marked a == _marked b
+instance (IsString n, Ord a) => Default (AppState n a) where
+    def
+      = AppState { _focused = None
+                 , _courses = L.list "courses" V.empty 1
+                 , _students = L.list "students" V.empty 1
+                 , _marked = S.empty
+                 }
 
 makeLenses ''AppState
 
+{-
+
+appState :: (Ord a, IsString n) => V.Vector Text -> V.Vector a -> Set a -> AppState n a
+appState courses students
+  = AppState
+      mempty
+      (L.list "courses" (vectorSort courses) 1)
+      (L.list "students" (vectorSort students) 1)
+
+appState' :: Ord a => BList n Text -> BList n a -> Set a -> AppState n a
+appState' = AppState mempty
+
+
+
 foldr :: Ord a => (a -> b -> b) -> b -> AppState n a  -> b
-foldr f def m
-  = V.foldr f def items
+foldr f dflt m
+  = V.foldr f dflt items
   where
     items = (_blist m) ^. L.listElementsL
 
 map :: (Ord a, Ord b) => (a -> b) -> AppState n a -> AppState n b
 map f m
-  = appState' (L.list lstName (V.map f lstItems) 1) (S.map f setItems)
+  = appState' courses (L.list lstName (V.map f lstItems) 1) (S.map f setItems)
   where
+      courses = (_courses m)
       lstItems = (_blist m) ^. L.listElementsL
       lstName = (_blist m) ^. L.listNameL
       setItems = _marked m
@@ -103,3 +128,5 @@ unions = P.foldr union empty
 
 unionVector :: (Monoid n, Ord a) => V.Vector (AppState n a) -> AppState n a
 unionVector = V.foldr union empty
+
+-}

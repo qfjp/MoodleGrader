@@ -4,56 +4,67 @@ module Ui where
 
 import           Padelude
 
-import qualified Graphics.Vty         as V
+import qualified Graphics.Vty               as V
 
-import           Lens.Micro           ((^.))
+import           Lens.Micro                 ((.~), (^.))
 
-import qualified Brick.AttrMap        as A
-import qualified Brick.Main           as M
-import           Brick.Types          (Widget)
-import qualified Brick.Types          as T
-import           Brick.Util           (bg, on)
-import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Center as C
-import           Brick.Widgets.Core   (hLimit, str, vBox, vLimit, withAttr,
-                                       (<+>))
-import qualified Brick.Widgets.List   as L
+import qualified Brick.AttrMap              as A
+import qualified Brick.Main                 as M
+import           Brick.Types                (Widget)
+import qualified Brick.Types                as T
+import           Brick.Util                 (bg, on)
+import qualified Brick.Widgets.Border       as B
+import           Brick.Widgets.Border.Style
+import qualified Brick.Widgets.Center       as C
+import           Brick.Widgets.Core         (emptyWidget, hBox, hLimit, str,
+                                             vBox, vLimit, withAttr,
+                                             withBorderStyle, (<+>))
+import qualified Brick.Widgets.Dialog       as D
+import qualified Brick.Widgets.List         as L
 
-import qualified Data.Set.Monad       as S
-import           Data.Text            (unpack)
-import qualified Data.Vector          as Vec
+import           Data.Default
+import qualified Data.Set.Monad             as S
+import           Data.Text                  (unpack)
+import qualified Data.Vector                as Vec
 
 import           Control.PrettyShow
-import           Data.AppState.Monad
+import           Data.AppState
+import           Driver.Moodle              (getCourses)
+import           Util.Vector                (vectorSort)
 
 txt :: Text -> Widget a
 txt = str . unpack
 
-drawUi :: (Enum n, Monoid n, Ord n, Show n, Show a, Ord a, PrettyShow a)
+drawUi :: (Ord n, Show n, Monoid n, IsString n, Show a, Ord a, PrettyShow a)
        => AppState n a -> [Widget n]
 drawUi s
   = [ui]
   where
-    l = getBlist s
+    studentList = s ^. students
+    courseList = s ^. courses
     label = txt "Item " <+> cur <+> txt " of " <+> total
     cur
-      = case l ^. L.listSelectedL of
+      = case studentList ^. L.listSelectedL of
           Nothing -> txt "-"
           Just i  -> txt . pshow $ (i + 1)
     total
-      = txt . pshow . Vec.length $ l ^. L.listElementsL
-    leftBox
+      = txt . pshow . Vec.length $ studentList ^. L.listElementsL
+    studentBox
       = B.borderWithLabel label
       $ hLimit 25
       $ vLimit 15
-      $ L.renderList (listDrawElement s) True l
-    rightBox
-      = B.borderWithLabel label
+      $ L.renderList (listDrawElement s) True studentList
+    courseBox
+      = B.borderWithLabel (txt "Courses")
       $ hLimit 25
       $ vLimit 15
-      $ L.renderList (listDrawElement s) True (L.list (succ mempty) Vec.empty 1)
+      $ L.renderList (const $ txt) True courseList
+    courseBord = if (s ^. focused) == Courses then unicodeBold else unicodeRounded
+    studentBord = if (s ^. focused) == Students then unicodeBold else unicodeRounded
     ui = C.vCenter
-       $ vBox [ C.hCenter leftBox <+> rightBox
+       $ vBox [ hBox [ withBorderStyle courseBord $ C.hCenter courseBox
+                     , withBorderStyle studentBord $ C.hCenter studentBox
+                     ]
               , str " "
               , C.hCenter $ str "Students"
               ]
@@ -63,49 +74,92 @@ listDrawElement :: (Monoid n, Ord a, PrettyShow a)
 listDrawElement p sel a
   = selStr . unpack . pshow $ a
   where
-    set = getMarks p
+    set = p ^. marked
     selStr s
-      | sel && S.member a set = withAttr (markedAttr ++ L.listSelectedAttr) (str s)
+      | sel && S.member a set
+          = withAttr (markedAttr ++ L.listSelectedAttr) (str s)
       | sel = withAttr L.listSelectedAttr (str s)
       | S.member a set = withAttr markedAttr (str s)
       | otherwise = str s
 
+
+
 appEvent :: forall n a b c. (Ord n, Ord a, Monoid n)
-         => AppState n a -> T.BrickEvent b c -> T.EventM n (T.Next (AppState n a))
+         => AppState n a -> T.BrickEvent b c
+         -> T.EventM n (T.Next (AppState n a))
+appEvent p (T.VtyEvent (V.EvKey (V.KChar 'q') []))
+  = M.halt p
 appEvent p (T.VtyEvent e)
-  = case e of
-      V.EvKey V.KEsc []
-        -> M.halt p
-      V.EvKey (V.KChar 'q') []
-        -> M.halt p
-      V.EvKey V.KEnter []
-        ->  M.halt p
-      V.EvKey (V.KChar ' ') []
-        -> spacePress
-      V.EvKey (V.KChar 'k') []
-        -> modifyList (return . L.listMoveUp)
-      V.EvKey (V.KChar 'j') []
-        -> modifyList (return . L.listMoveDown)
-      V.EvKey (V.KChar 'g') [] -> modifyList (return . L.listMoveTo 0)
-      V.EvKey (V.KChar 'G') []
-        -> modifyList (return . L.listMoveTo (Vec.length $ L.listElements l))
-      ev
-        -> modifyList (L.handleListEvent ev)
+  = case p ^. focused of
+      None
+        -> case e of
+             V.EvKey (V.KChar 's') []
+               -> M.continue (focused .~ Students $ p)
+             V.EvKey (V.KChar 'c') []
+               -> M.continue (focused .~ Courses $ p)
+             ev -> M.continue p
+      Assignments
+        -> undefined
+      Courses
+        -> case e of
+              V.EvKey (V.KChar 'c') []
+                -> M.continue p
+              V.EvKey (V.KChar 's') []
+                -> M.continue (focused .~ Students $ p)
+              V.EvKey (V.KChar 'k') []
+                -> modifyCourseList L.listMoveUp
+              V.EvKey (V.KChar 'j') []
+                -> modifyCourseList L.listMoveDown
+              V.EvKey (V.KChar 'g') [] -> modifyCourseList (L.listMoveTo 0)
+              V.EvKey (V.KChar 'G') []
+                -> modifyCourseList . L.listMoveTo . Vec.length
+                 . L.listElements $ courseList
+              ev
+                -> M.continue p
+      Students
+        -> case e of
+             V.EvKey (V.KChar 'c') []
+               -> M.continue (focused .~ Courses $ p)
+             V.EvKey V.KEsc []
+               -> M.halt p
+             V.EvKey V.KEnter []
+               ->  M.halt p
+             V.EvKey (V.KChar ' ') []
+               -> spacePress
+             V.EvKey (V.KChar 'k') []
+               -> modifyStudentList L.listMoveUp
+             V.EvKey (V.KChar 'j') []
+               -> modifyStudentList L.listMoveDown
+             V.EvKey (V.KChar 'g') [] -> modifyStudentList (L.listMoveTo 0)
+             V.EvKey (V.KChar 'G') []
+               -> modifyStudentList . L.listMoveTo . Vec.length
+                $ L.listElements studentList
+             ev
+               -> do
+                   newList <- L.handleListEvent ev studentList
+                   M.continue (students .~ newList $ p)
+                   --modifyList (L.handleListEvent ev)
   where
-    l = getBlist p
-    v = getMarks p
-    modifyList :: (BList n a -> T.EventM n (BList n a))
-               -> T.EventM n (T.Next (AppState n a))
-    modifyList f
-      = fmap appState' (f l) <*> (return v) >>= M.continue
+    studentList = p ^. students
+    courseList = p ^. courses
+    markedSet = p ^. marked
+    modifyCourseList :: (BList n Text -> BList n Text)
+                      -> T.EventM n (T.Next (AppState n a))
+    modifyCourseList f
+      = M.continue (courses .~ f courseList $ p)
+    modifyStudentList :: (BList n a -> BList n a)
+                      -> T.EventM n (T.Next (AppState n a))
+    modifyStudentList f
+    --  = fmap appState' (f l) <*> (return v) >>= M.continue
+      = M.continue (students .~ f studentList $ p)
     spacePress :: T.EventM n (T.Next (AppState n a))
     spacePress
-      = case L.listSelectedElement l of
+      = case L.listSelectedElement studentList of
           Nothing -> M.continue p
           Just (_, el)
             -> do
-                let newSet = toggleElement el v
-                    newState = appState' l newSet
+                let newSet = toggleElement el markedSet
+                    newState = marked .~ newSet $ p
                 M.continue newState
 appEvent p _ = M.continue p
 
@@ -116,12 +170,20 @@ toggleElement x set
     else S.insert x set
 
 
-initialState :: (Monoid n, Ord a) => Vec.Vector a -> AppState n a
-initialState names
-  = appState
-      mempty
-      names
-      mempty
+--initialState :: (Monoid n, Ord a) => Vec.Vector a -> AppState n a
+--initialState names
+--  = appState
+--      mempty
+--      names
+--      mempty
+
+initialState' :: (IsString n, Monoid n, Ord a) => IO (AppState n a)
+initialState'
+  = do
+      courseList <- getCourses
+      return
+        $ courses .~ L.list "courses" (Vec.fromList courseList) 1
+        $ def
 
 markedAttr :: A.AttrName
 markedAttr = A.attrName "marked"
@@ -134,7 +196,7 @@ theMap
   , (markedAttr,         bg V.black)
   ]
 
-theApp :: (Enum n, Monoid n, Ord n, Show n, Show a, PrettyShow a, Ord a) => M.App (AppState n a) e n
+theApp :: (IsString n, Monoid n, Ord n, Show n, Show a, PrettyShow a, Ord a) => M.App (AppState n a) e n
 theApp
   = M.App { M.appDraw = drawUi
           , M.appChooseCursor = M.showFirstCursor

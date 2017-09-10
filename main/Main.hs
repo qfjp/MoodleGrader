@@ -1,23 +1,23 @@
 module Main where
 
 import           Padelude
-import qualified Prelude                    as Pre (error)
 
-import qualified Brick.Main                 as M
-import           Control.Monad.Trans.Either
+import qualified Brick.Main    as M
 
-import           Data.AppState.Monad
+--import           Data.AppState.Monad
+import           Data.AppState
 import           Data.Name
-import           Driver.Moodle              as Driver
-import           Parser.NameList
-import           Ui                         (initialState, theApp)
+import           Driver.Moodle as Driver
+import           Ui            (initialState', theApp)
 
 main :: IO ()
 main
   = do
-      nameList <- runEitherT $ getNamesFromCsv "390.csv"
-      finalState <- case nameList of
-        Left x -> Pre.error x
-        Right (_, ns) -> M.defaultMain theApp (initialState ns :: AppState Nat Name)
-      mapM_ print $ getMarks finalState
-      Driver.run Driver.testNames
+      --nameList <- runEitherT $ getNamesFromCsv "390.csv"
+      --finalState <- case nameList of
+      --  Left x -> Pre.error x
+      --  Right (_, ns) -> M.defaultMain theApp (initialState ns :: AppState Text Name)
+      initState <- initialState' :: IO (AppState Text Name)
+      finalState <- M.defaultMain theApp initState
+      mapM_ print $ (_marked finalState)
+      --Driver.run Driver.testNames
