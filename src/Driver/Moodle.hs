@@ -157,7 +157,9 @@ getCourses
         lift login
         lift gotoMainPage
         courseTitleDivs <- lift $ findElems (ByClass "course_title")
-        lift $ mapM getText courseTitleDivs
+        courseList <- lift $ mapM getText courseTitleDivs
+        lift closeSession
+        return courseList
 
 gotoAllSubmissions :: WebDriver wd => EitherT Text wd ()
 gotoAllSubmissions
