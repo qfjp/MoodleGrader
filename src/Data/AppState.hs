@@ -14,6 +14,8 @@ import qualified Data.Vector        as V
 import           Lens.Micro         ((^.))
 import           Lens.Micro.TH      (makeLenses)
 
+import           Data.Course
+
 type BList n a
   = L.List n a
 
@@ -56,7 +58,7 @@ instance Monoid AppSection where
 
 data AppState n a
     = AppState { _focused  :: AppSection
-               , _courses  :: BList n Text
+               , _courses  :: BList n Course
                , _students :: BList n a
                , _marked   :: Set a
                }

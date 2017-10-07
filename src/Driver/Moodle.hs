@@ -4,15 +4,22 @@ module Driver.Moodle where
 import           Padelude
 
 import           Control.Monad.Trans.Either
+import           Data.Default
 import qualified Data.Text                    as T
 import           Data.Text.IO
+import           Lens.Micro                   ((.~))
+
 import           Test.WebDriver               as S
 import           Test.WebDriver.Class         as S
 import           Test.WebDriver.Commands.Wait as S
 import           Test.WebDriver.Config        as S
 
+import           Control.MoodleShow
+import           Data.Course
 import           Data.Name
 import           Driver.Moodle.Parser
+import           Parser.NameList
+import           Util.Text
 
 
 -- Data Types --
@@ -42,9 +49,6 @@ maybe2EitherT err mayb
       Just x  -> right x
       Nothing -> left err
 
-tshow :: Show a => a -> Text
-tshow = T.pack . show
-
 wd2Io :: (WebDriverConfig conf) => conf -> EitherT e WD a -> EitherT e IO a
 wd2Io conf driver
   = EitherT (runSession conf (runEitherT driver))
@@ -52,17 +56,25 @@ wd2Io conf driver
 -- Test Data --
 
 username :: Text
-username = undefined
+username = "pade"
 password :: Text
-password = undefined
+password = "Eoc*oo4k"
 testSection :: Text
-testSection = undefined
+testSection = "390-001-F2017"
 testAssignment :: Text
-testAssignment = undefined
+testAssignment = "HW1"
 
 testNames :: [(Name, Int)]
 testNames
-  = undefined
+  = [ (Name { _nFst = "ABBY", _nMid = Just "N"
+           , _nLst = "HOLDEMAN", _nSuf = Nothing }, 15)
+    , (Name { _nFst = "ADARIUS", _nMid = Just "M"
+           , _nLst = "ADAMS", _nSuf = Nothing }, 14)
+    , (Name { _nFst = "DENZEL", _nMid = Nothing
+           , _nLst = "WILSON", _nSuf = Nothing }, 13)
+    , (Name { _nFst = "DONALD", _nMid = Nothing
+           , _nLst = "LANDRUM", _nSuf = Just "JR" }, 12)
+    ]
 
 -- Purely internal --
 
@@ -74,9 +86,9 @@ findUniqueElem :: WebDriver wd => S.Selector -> EitherT Text wd Element
 findUniqueElem selector
   = lift elemList >>= \x ->
       case x of
-        []     -> left $ "No element " ++ show selector
-        (y:[]) -> right y
-        _      -> left $ "Too many elements from " ++ show selector
+        []  -> left $ "No element " ++ show selector
+        [y] -> right y
+        _   -> left $ "Too many elements from " ++ show selector
   where
       elemList :: WebDriver wd => wd [Element]
       elemList = findElems selector
@@ -90,7 +102,7 @@ findUniqueElemFrom selector el
         case x of
           []     -> left $ "No subelement "
                  ++ show selector ++ " under " ++ elemText
-          (y:[]) -> right $ y
+          [y] -> right y
           _      -> left $ "Too many subelements "
                  ++ show selector ++ " under " ++ elemText
   where
@@ -106,9 +118,8 @@ findUniqueElemFromEls selector els
         <- rightsT . map (findUniqueElemFrom selector)
          $ els
       case results of
-          (x:[]) -> right x
-          _      -> left "Couldn't find course link"
-  where
+          [x] -> right x
+          _   -> left "Couldn't find course link"
 
 -- | Given that the webdriver is at the 'logged in' page, this moves the
 -- to the course webpage.
@@ -149,7 +160,43 @@ login
     sendKeys password passwordInput
     submit loginButton
 
-getCourses :: IO [Text]
+getStudents :: Course -> IO [Name]
+getStudents course
+  = eitherT
+      ((flip (>>)) (return []) . hPutStr stderr)
+      return . wd2Io driverConfig $ do
+        lift login
+        lift gotoMainPage
+        courseTitleLink <- findUniqueElem (ByLinkText (moodleShow course))
+        lift $ click courseTitleLink
+        peopleLink <- findUniqueElem (ByLinkText "Participants")
+        lift $ click peopleLink
+        tooMany <- lift $ findElems (ByPartialLinkText "Show all")
+        unless (null tooMany) $ do
+            let (Just showButton) = head tooMany
+            lift $ click showButton
+        participantTable <- findUniqueElem (ById "participants")
+        tableBody <- findUniqueElemFrom (ByTag "tbody") participantTable
+        rows <- lift $ findElemsFrom tableBody (ByCSS "tr:not(.emptyrow)")
+        names <- mapM extractUserFromRow rows
+        liftIO $ withFile "temp.txt" WriteMode $ \h ->
+            hPutStr h (show names)
+        return names
+  where
+      getNameCell :: WebDriver wd => Element -> EitherT Text wd Text
+      getNameCell row
+        = findUniqueElemFrom (ByClass "c2") row >>= lift . getText
+      getEmailCell :: WebDriver wd => Element -> EitherT Text wd Text
+      getEmailCell row
+        = findUniqueElemFrom (ByClass "c3") row >>= lift . getText
+      extractUserFromRow :: Element -> EitherT Text WD Name
+      extractUserFromRow row
+        = do
+            name <- getNameCell row
+            email <- getEmailCell row
+            return $ nEml .~ email $ fromMaybe def (parseName name)
+
+getCourses :: IO [Course]
 getCourses
   = eitherT
       ((flip (>>)) (return []) . hPutStr stderr)
@@ -159,7 +206,7 @@ getCourses
         courseTitleDivs <- lift $ findElems (ByClass "course_title")
         courseList <- lift $ mapM getText courseTitleDivs
         lift closeSession
-        return courseList
+        return . map parseCourseId $ courseList
 
 gotoAllSubmissions :: WebDriver wd => EitherT Text wd ()
 gotoAllSubmissions
@@ -187,7 +234,7 @@ gradeStudent name grade
   = do
       lift . click =<< firstInitButton
       lift . click =<< lastInitButton
-      studentId <- findUniqueElem . ByLinkText . moodlePrint $ name
+      studentId <- findUniqueElem . ByLinkText . moodleShow $ name
       hrefAttr
         <- maybe2EitherT
              "Could not find href attribute for given name" =<<
