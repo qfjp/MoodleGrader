@@ -19,7 +19,19 @@ data Name
            , _nSuf :: Maybe Text
            , _nEml :: Text
            }
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq)
+
+instance Ord Name where
+    n1 `compare` n2
+      | _nLst n1 < _nLst n2
+          = LT
+      | _nLst n1 == _nLst n2 && _nFst n1 < _nFst n2
+          = LT
+      | _nLst n1 == _nLst n2 && _nFst n1 == _nFst n2 && _nMid n1 < _nMid n2
+          = LT
+      | _nLst n1 == _nLst n2 && _nFst n1 == _nFst n2 && _nMid n1 == _nMid n2
+          = EQ
+      | otherwise = GT
 
 makeLenses ''Name
 
