@@ -160,28 +160,44 @@ login
     sendKeys password passwordInput
     submit loginButton
 
-getStudents :: Course -> IO [Name]
-getStudents course
+getCourseInfo :: Course -> IO ([Text], [Name])
+getCourseInfo course
   = eitherT
-      ((flip (>>)) (return []) . hPutStr stderr)
+      ((flip (>>)) (return ([],[])) . hPutStr stderr)
       return . wd2Io driverConfig $ do
         lift login
-        lift gotoMainPage
-        courseTitleLink <- findUniqueElem (ByLinkText (moodleShow course))
-        lift $ click courseTitleLink
-        peopleLink <- findUniqueElem (ByLinkText "Participants")
-        lift $ click peopleLink
-        tooMany <- lift $ findElems (ByPartialLinkText "Show all")
-        unless (null tooMany) $ do
-            let (Just showButton) = head tooMany
-            lift $ click showButton
-        participantTable <- findUniqueElem (ById "participants")
-        tableBody <- findUniqueElemFrom (ByTag "tbody") participantTable
-        rows <- lift $ findElemsFrom tableBody (ByCSS "tr:not(.emptyrow)")
-        names <- mapM extractUserFromRow rows
-        liftIO $ withFile "temp.txt" WriteMode $ \h ->
-            hPutStr h (show names)
-        return names
+        studentLst <- getStudents course
+        assignLst <- getAssignments course
+        liftIO $ writeFile "temp.txt" (show studentLst)
+        lift closeSession
+        return (assignLst, studentLst)
+
+getAssignments :: WebDriver wd => Course -> EitherT Text wd [Text]
+getAssignments course
+  = do
+      lift gotoMainPage
+      (courseTitleLink:_) <- lift $ findElems (ByLinkText (moodleShow course))
+      lift $ click courseTitleLink
+      hwElems <- lift $ findElems (ByPartialLinkText "HW")
+      mapM (lift . getText) hwElems
+
+getStudents :: WebDriver wd => Course -> EitherT Text wd [Name]
+getStudents course
+  = do
+      lift gotoMainPage
+      (courseTitleLink:_) <- lift $ findElems (ByLinkText (moodleShow course))
+      lift $ click courseTitleLink
+      peopleLink <- findUniqueElem (ByLinkText "Participants")
+      lift $ click peopleLink
+      tooMany <- lift $ findElems (ByPartialLinkText "Show all")
+      unless (null tooMany) $ do
+          let (Just showButton) = head tooMany
+          lift $ click showButton
+      participantTable <- findUniqueElem (ById "participants")
+      tableBody <- findUniqueElemFrom (ByTag "tbody") participantTable
+      rows <- lift $ findElemsFrom tableBody (ByCSS "tr:not(.emptyrow)")
+      names <- mapM extractUserFromRow rows
+      return names
   where
       getNameCell :: WebDriver wd => Element -> EitherT Text wd Text
       getNameCell row
@@ -189,12 +205,12 @@ getStudents course
       getEmailCell :: WebDriver wd => Element -> EitherT Text wd Text
       getEmailCell row
         = findUniqueElemFrom (ByClass "c3") row >>= lift . getText
-      extractUserFromRow :: Element -> EitherT Text WD Name
+      extractUserFromRow :: WebDriver wd => Element -> EitherT Text wd Name
       extractUserFromRow row
         = do
-            name <- getNameCell row
-            email <- getEmailCell row
-            return $ nEml .~ email $ fromMaybe def (parseName name)
+            studentName <- getNameCell row
+            studentEmail <- getEmailCell row
+            return $ nEml .~ studentEmail $ fromMaybe def (parseName studentName)
 
 getCourses :: IO [Course]
 getCourses

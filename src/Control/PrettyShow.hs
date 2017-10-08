@@ -10,5 +10,8 @@ class PrettyShow a where
 instance PrettyShow Int where
     pshow = pack . show
 
+instance PrettyShow Text where
+    pshow = identity
+
 pprint :: PrettyShow a => a -> IO ()
 pprint = print . pshow

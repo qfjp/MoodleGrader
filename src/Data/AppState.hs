@@ -9,6 +9,7 @@ import           Padelude           hiding (empty, foldr)
 import           Brick.Widgets.List as L
 
 import           Data.Default
+import qualified Data.Map.Strict    as M
 import qualified Data.Set.Monad     as S
 import qualified Data.Vector        as V
 import           Lens.Micro         ((^.))
@@ -59,17 +60,21 @@ instance Monoid AppSection where
 data AppState n a
     = AppState { _focused  :: AppSection
                , _courses  :: BList n Course
+               , _assigns  :: BList n Text
                , _students :: BList n a
                , _marked   :: Set a
+               , _grades   :: M.Map a Int
                }
     deriving (Show, Eq, Ord)
 
 instance (IsString n, Ord a) => Default (AppState n a) where
     def
       = AppState { _focused = None
+                 , _assigns = L.list "assigns" V.empty 1
                  , _courses = L.list "courses" V.empty 1
                  , _students = L.list "students" V.empty 1
                  , _marked = S.empty
+                 , _grades = M.empty
                  }
 
 makeLenses ''AppState
