@@ -12,7 +12,7 @@ import qualified Brick.AttrMap              as A
 import qualified Brick.Main                 as M
 import           Brick.Types                (Widget)
 import qualified Brick.Types                as T
-import           Brick.Util                 (bg, on)
+import           Brick.Util                 (bg, fg, on)
 import qualified Brick.Widgets.Border       as B
 import           Brick.Widgets.Border.Style
 import qualified Brick.Widgets.Center       as C
@@ -264,9 +264,9 @@ markedAttr = A.attrName "marked"
 theMap :: A.AttrMap
 theMap
   = A.attrMap V.defAttr
-  [ (L.listAttr,         V.white `on` V.brightWhite)
+  [ (L.listAttr,         fg V.white)
   , (L.listSelectedAttr, V.brightWhite `on` V.white)
-  , (markedAttr,         bg V.black)
+  , (markedAttr,         fg V.cyan)
   ]
 
 theApp :: (IsString n, Monoid n, Ord n, Show n)

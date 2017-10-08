@@ -7,7 +7,7 @@ import           Control.Monad.Trans.Either
 import           Data.Default
 import qualified Data.Text                    as T
 import           Data.Text.IO
-import           Lens.Micro                   ((.~))
+import           Lens.Micro                   ((.~), (^.))
 
 import           Test.WebDriver               as S
 import           Test.WebDriver.Class         as S
@@ -55,20 +55,12 @@ wd2Io conf driver
 
 -- Test Data --
 
-username :: Text
-username = "pade"
-password :: Text
-password = "Eoc*oo4k"
-testSection :: Text
-testSection = "390-001-F2017"
-testAssignment :: Text
-testAssignment = "HW1"
 
 -- Purely internal --
 
 driverConfig :: WDConfig
---driverConfig = useBrowser phantomjs defaultConfig
-driverConfig = useBrowser chrome defaultConfig
+driverConfig = useBrowser (Phantomjs Nothing []) defaultConfig
+--driverConfig = useBrowser chrome defaultConfig
 
 findUniqueElem :: WebDriver wd => S.Selector -> EitherT Text wd Element
 findUniqueElem selector
@@ -163,18 +155,14 @@ getCourseInfo course
 getAssignments :: WebDriver wd => Course -> EitherT Text wd [Text]
 getAssignments course
   = do
-      lift gotoMainPage
-      (courseTitleLink:_) <- lift $ findElems (ByLinkText (moodleShow course))
-      lift $ click courseTitleLink
+      lift $ (openPage . T.unpack) (course ^. url)
       hwElems <- lift $ findElems (ByPartialLinkText "HW")
       mapM (lift . getText) hwElems
 
 getStudents :: WebDriver wd => Course -> EitherT Text wd [Name]
 getStudents course
   = do
-      lift gotoMainPage
-      (courseTitleLink:_) <- lift $ findElems (ByLinkText (moodleShow course))
-      lift $ click courseTitleLink
+      lift $ (openPage . T.unpack) (course ^. url)
       peopleLink <- findUniqueElem (ByLinkText "Participants")
       lift $ click peopleLink
       tooMany <- lift $ findElems (ByPartialLinkText "Show all")
@@ -184,8 +172,7 @@ getStudents course
       participantTable <- findUniqueElem (ById "participants")
       tableBody <- findUniqueElemFrom (ByTag "tbody") participantTable
       rows <- lift $ findElemsFrom tableBody (ByCSS "tr:not(.emptyrow)")
-      names <- mapM extractUserFromRow rows
-      return names
+      mapM extractUserFromRow rows
   where
       getNameCell :: WebDriver wd => Element -> EitherT Text wd Text
       getNameCell row
@@ -208,9 +195,12 @@ getCourses
         lift login
         lift gotoMainPage
         courseTitleDivs <- lift $ findElems (ByClass "course_title")
+        courseLinks <- mapM (findUniqueElemFrom (ByCSS "a")) courseTitleDivs
+        maybUrls <- lift $ mapM (`attr` "href") courseLinks
         courseList <- lift $ mapM getText courseTitleDivs
         lift closeSession
-        return . map parseCourseId $ courseList
+        let urls = fromMaybe ["hello"] (sequence maybUrls)
+        return . map (\(x,y) -> parseCourseId y x) $ zip courseList urls
 
 gotoAllSubmissions :: WebDriver wd => EitherT Text wd ()
 gotoAllSubmissions

@@ -58,12 +58,13 @@ instance Monoid AppSection where
     _ `mappend` y = y
 
 data AppState n a
-    = AppState { _focused  :: AppSection
-               , _courses  :: BList n Course
-               , _assigns  :: BList n Text
-               , _students :: BList n a
-               , _marked   :: Set a
-               , _grades   :: M.Map a Int
+    = AppState { _focused   :: AppSection
+               , _courses   :: BList n Course
+               , _assigns   :: BList n Text
+               , _students  :: BList n a
+               , _marked    :: Set a
+               , _grades    :: M.Map a Int
+               , _assignMax :: Int
                }
     deriving (Show, Eq, Ord)
 
@@ -75,6 +76,7 @@ instance (IsString n, Ord a) => Default (AppState n a) where
                  , _students = L.list "students" V.empty 1
                  , _marked = S.empty
                  , _grades = M.empty
+                 , _assignMax = 100
                  }
 
 makeLenses ''AppState

@@ -1,9 +1,10 @@
 module Driver.Moodle.Parser where
 
 import           Padelude
-import qualified Prelude       as Pre
+import qualified Prelude        as Pre
 
-import           Data.Text     (pack, strip, unpack)
+import           Data.Text      (pack, strip, unpack)
+import           Test.WebDriver (Element)
 import           Text.Trifecta
 
 import           Data.Course
@@ -22,11 +23,11 @@ parseUserId url
           void $ text "https://dropbox.cse.sc.edu/user/view.php?id="
           uid <- integer
           void $ text "&course="
-          void $ integer
+          void integer
           return uid
 
-parseCourseId :: Text -> Course
-parseCourseId fullText
+parseCourseId :: Text -> Text -> Course
+parseCourseId uri fullText
   = case parseString parser mempty (unpack fullText) of
       Success x -> x
       _         -> Pre.error ""
@@ -53,4 +54,5 @@ parseCourseId fullText
                             "S"  -> Spring
                             "Su" -> Summer
                             _    -> Unknown
+              , _url = uri
               }
