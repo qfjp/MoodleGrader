@@ -38,7 +38,7 @@ instance Default Course where
     def = Course "" 0 0 Unknown 0
 
 instance PrettyShow Course where
-    pshow x = tshow (_number x) ++ " - " ++ tshow (_name x)
+    pshow x = tshow (_number x) ++ " - " ++ _name x
 
 instance MoodleShow Course where
     moodleShow
