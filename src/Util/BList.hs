@@ -8,7 +8,7 @@ import qualified Brick.Widgets.List as L
 import           Data.Default
 import qualified Data.Vector        as V
 
-import           Lens.Micro         ((.~), (^.))
+import           Lens.Micro         ((^.))
 
 import           Control.PrettyShow
 import           Data.AppState

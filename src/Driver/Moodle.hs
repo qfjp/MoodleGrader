@@ -124,10 +124,10 @@ findUniqueElemFromEls selector els
 -- | Given that the webdriver is at the 'logged in' page, this moves the
 -- to the course webpage.
 courseLink :: WebDriver wd => Text -> EitherT Text wd Element
-courseLink section
+courseLink sect
   = do
       courseTitleDivs <- lift $ findElems (ByClass "course_title")
-      findUniqueElemFromEls (ByPartialLinkText section) courseTitleDivs
+      findUniqueElemFromEls (ByPartialLinkText sect) courseTitleDivs
 
 -- Assumes we are at the course webpage
 -- Brings us to the link for the assignment
@@ -243,14 +243,14 @@ noNotifyOpt
          $ "#id_sendstudentnotifications option[value=\"0\"]"
       lift $ click noOpt
 
--- | Given a name and a grade, saves that grade through moodle.
--- Assumes we are at the link for grading the assignment
+-- | Given a name, grade, and assignment this will save that grade through
+-- moodle.  Assumes we are at the link for grading the assignment
 gradeStudent :: WebDriver wd => Name -> Int -> EitherT Text wd ()
-gradeStudent name grade
+gradeStudent studentName grade
   = do
       lift . click =<< firstInitButton
       lift . click =<< lastInitButton
-      studentId <- findUniqueElem . ByLinkText . moodleShow $ name
+      studentId <- findUniqueElem . ByLinkText . moodleShow $ studentName
       hrefAttr
         <- maybe2EitherT
              "Could not find href attribute for given name" =<<
@@ -263,8 +263,8 @@ gradeStudent name grade
       noNotifyOpt
       lift $ submit saveElement -- TODO: Test before using this!
   where
-      firstInitial = T.head . _nFst $ name
-      lastInitial = T.head . _nLst $ name
+      firstInitial = T.head . _nFst $ studentName
+      lastInitial = T.head . _nLst $ studentName
       selectInitial :: WebDriver wd
                     => Initial -> EitherT Text wd Element
       selectInitial initial
