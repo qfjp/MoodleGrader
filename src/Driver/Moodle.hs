@@ -64,18 +64,6 @@ testSection = "390-001-F2017"
 testAssignment :: Text
 testAssignment = "HW1"
 
-testNames :: [(Name, Int)]
-testNames
-  = [ (Name { _nFst = "ABBY", _nMid = Just "N"
-           , _nLst = "HOLDEMAN", _nSuf = Nothing }, 15)
-    , (Name { _nFst = "ADARIUS", _nMid = Just "M"
-           , _nLst = "ADAMS", _nSuf = Nothing }, 14)
-    , (Name { _nFst = "DENZEL", _nMid = Nothing
-           , _nLst = "WILSON", _nSuf = Nothing }, 13)
-    , (Name { _nFst = "DONALD", _nMid = Nothing
-           , _nLst = "LANDRUM", _nSuf = Just "JR" }, 12)
-    ]
-
 -- Purely internal --
 
 driverConfig :: WDConfig
