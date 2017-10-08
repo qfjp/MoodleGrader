@@ -18,4 +18,4 @@ extra-deps:
 - text-zipper-0.10
 - vty-5.17.1
 - webdriver-0.8.5
-resolver: lts-5.18
+resolver: lts-9.1
